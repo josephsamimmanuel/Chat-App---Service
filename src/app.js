@@ -14,7 +14,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-const userRouter = require("./routes/auth");    
+const userRouter = require("./routes/authRouter");    
 const uploadRouter = require("./routes/uploadRoutes");
 
 app.use("/api/auth", userRouter);
