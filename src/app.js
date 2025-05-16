@@ -14,11 +14,19 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-const userRouter = require("./routes/authRouter");    
+const authRouter = require("./routes/authRouter");    
 const uploadRouter = require("./routes/uploadRoutes");
+const onboardingRouter = require("./routes/onboardingRouter");
+const userRouter = require("./routes/userRouter");
+const friendRequestRouter = require("./routes/friendRequestRouter");
+const chatRouter = require("./routes/chatRouter");
 
-app.use("/api/auth", userRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/onboarding", onboardingRouter);
+app.use("/api/user", userRouter);
+app.use("/api/friend-request", friendRequestRouter);
+app.use("/api/chat", chatRouter);
 
 connectDB().then(() => {
     console.log("Connected to MongoDB");

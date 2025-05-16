@@ -5,6 +5,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const auth = require("../middleware/auth");
+const { upsertStreamUser } = require("../utils/stream");
 
 // Register a new user
 userRouter.post("/register", async (req, res) => {
@@ -15,14 +16,31 @@ userRouter.post("/register", async (req, res) => {
             return res.status(400).json({ message: "User already exists" });
         }
 
+        const index = Math.floor(Math.random() * 100) + 1;
+        const randomProfilePicture = `https://avatar.iran.liara.run/public/${index}.png`;
+
         const hashedPassword = await bcrypt.hash(password, 6);
         const newUser = new User({
             username,
             email,
             password: hashedPassword,
-            profilePicture
+            profilePicture: randomProfilePicture
         });
         await newUser.save();
+
+        try {
+            await upsertStreamUser({
+                id: newUser._id,
+                name: newUser.username,
+                email: newUser.email,
+                password: newUser.password,
+                image: newUser.profilePicture || randomProfilePicture
+            });
+            console.log(`Stream user created for ${newUser.username}`);
+        } catch (error) {
+            console.log(error);
+        }
+
         res.status(201).json({ message: "User registered successfully" });
     } catch (error) {
         res.status(500).json({ message: error.message });
