@@ -10,6 +10,7 @@ const { upsertStreamUser } = require("../utils/stream");
 // Register a new user
 userRouter.post("/register", async (req, res) => {
     const { username, email, password, profilePicture } = req.body;
+    console.log(req.body);
     try {
         const existingUser = await User.findOne({ $or: [{ username }, { email }] });
         if (existingUser) {

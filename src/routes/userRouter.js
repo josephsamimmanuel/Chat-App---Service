@@ -3,6 +3,7 @@ const userRouter = express.Router();
 const User = require('../models/user');
 const { generateStreamToken } = require('../utils/stream');
 const auth = require('../middleware/auth');
+const FriendRequest = require('../models/friendRequest');
 
 // Get Recommended Users
 userRouter.get('/recommended', auth, async (req, res) => {
@@ -15,26 +16,55 @@ userRouter.get('/recommended', auth, async (req, res) => {
             });
         }
 
+        // Find all pending friend requests involving the current user
+        const pendingRequests = await FriendRequest.find({
+            $or: [
+                { sender: userId, status: "pending" },
+                { receiver: userId, status: "pending" }
+            ]
+        });
+
+        // Get IDs of users involved in pending requests
+        const pendingUserIds = pendingRequests.map(request => {
+            return request.sender.toString() === userId 
+                ? request.receiver.toString() 
+                : request.sender.toString();
+        });
+
         // Find users who:
         // 1. Are not the current user
         // 2. Are not already friends with the current user
         // 3. Have completed onboarding
-        // 4. Match either native or learning language preferences
+        // 4. Are not involved in any pending friend requests
+        // 5. Match either native or learning language preferences
         const recommendedUsers = await User.find({
             $and: [
                 { _id: { $ne: userId } }, // Not the current user
                 { _id: { $nin: user.friends || [] } }, // Not already friends
+                { _id: { $nin: pendingUserIds } }, // Not in pending requests
                 { isOnboarding: true }, // Has completed onboarding
-                {
-                    $or: [
+
+                // Suppose you're this user:
+                // {
+                //  _id: 682591dae154d21c4e6d8e14,
+                //  username: "Joseph Sam Immanuel",
+                //  nativeLanguage: "Tamil",
+                //  learningLanguage: "Hindi",
+                //  friends: []
+                // }
+                // Your logic tries to find users who either:
+                // speak Hindi → nativeLanguage: "Hindi"
+                // want to learn Tamil → learningLanguage: "Tamil"
+                // {
+                //     $or: [
                         // Match language preferences
-                        { nativeLanguage: user.learningLanguage },
-                        { learningLanguage: user.nativeLanguage }
-                    ]
-                }
+                //         { nativeLanguage: user.learningLanguage },
+                //         { learningLanguage: user.nativeLanguage }
+                //     ]
+                // }
             ]
         }).select('username profilePicture bio nativeLanguage learningLanguage location')
-          .limit(10); // Limit results for better performance
+            .limit(10); // Limit results for better performance
 
         res.status(200).json({
             message: 'Recommended users fetched successfully',
@@ -53,7 +83,7 @@ userRouter.get('/recommended', auth, async (req, res) => {
 userRouter.get('/friends', auth, async (req, res) => {
     try {
         const { userId } = req.user;
-        
+
         // Find user and populate friends in one query
         const user = await User.findById(userId)
             .populate({

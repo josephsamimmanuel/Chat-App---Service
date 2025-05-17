@@ -93,14 +93,16 @@ friendRequestRouter.post("/accept/:requestId", auth, async (req, res) => {
             });
         }
 
+        // Get the sender's ID from the request
+        const senderId = request.sender;
+
         // Update the request status
         request.status = "accepted";
         await request.save();
 
         // Add each user to the other's friends list
-        // $addToSet: adds elements to an array only if they do not already exist in the array
-        await User.findByIdAndUpdate(userId, { $addToSet: { friends: receiverId } });
-        await User.findByIdAndUpdate(receiverId, { $addToSet: { friends: userId } });
+        await User.findByIdAndUpdate(userId, { $addToSet: { friends: senderId } });
+        await User.findByIdAndUpdate(senderId, { $addToSet: { friends: userId } });
 
         res.status(200).json({
             message: "Friend request accepted successfully",
@@ -119,15 +121,47 @@ friendRequestRouter.get("/get-all-friend-requests", auth, async (req, res) => {
     try {
         const { userId } = req.user;
 
-        const incomingRequests = await FriendRequest.find({ receiver: userId, status: "pending" }).populate("sender", "username profilePicture nativeLanguage learningLanguage");
-        const outgoingRequests = await FriendRequest.find({ sender: userId, status: "pending" }).populate("receiver", "username profilePicture nativeLanguage learningLanguage");
-        const acceptedRequests = await FriendRequest.find({ $or: [{ sender: userId }, { receiver: userId }], status: "accepted" }).populate("sender", "username profilePicture nativeLanguage learningLanguage").populate("receiver", "username profilePicture nativeLanguage learningLanguage");
+        const incomingRequests = await FriendRequest.find({ receiver: userId, status: "pending" })
+            .populate("sender", "username profilePicture nativeLanguage learningLanguage location");
+        
+        const outgoingRequests = await FriendRequest.find({ sender: userId, status: "pending" })
+            .populate("receiver", "username profilePicture nativeLanguage learningLanguage location");
+        
+        const acceptedRequests = await FriendRequest.find({ 
+            $or: [{ sender: userId }, { receiver: userId }], 
+            status: "accepted" 
+        })
+        .populate("sender", "username profilePicture nativeLanguage learningLanguage location")
+        .populate("receiver", "username profilePicture nativeLanguage learningLanguage location");
+
+        // Filter accepted requests to only show the other user's data
+        const filteredAcceptedRequests = acceptedRequests.map(request => {
+            if (request.sender._id.toString() === userId) {
+                // If current user is sender, return receiver's data
+                return {
+                    _id: request._id,
+                    user: request.receiver,
+                    status: request.status,
+                    createdAt: request.createdAt,
+                    updatedAt: request.updatedAt
+                };
+            } else {
+                // If current user is receiver, return sender's data
+                return {
+                    _id: request._id,
+                    user: request.sender,
+                    status: request.status,
+                    createdAt: request.createdAt,
+                    updatedAt: request.updatedAt
+                };
+            }
+        });
 
         res.status(200).json({
             message: "Friend requests fetched successfully",
             incomingRequests: incomingRequests,
             outgoingRequests: outgoingRequests,
-            acceptedRequests: acceptedRequests
+            acceptedRequests: filteredAcceptedRequests
         });
         
     } catch (error) {

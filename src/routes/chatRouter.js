@@ -98,7 +98,7 @@ chatRouter.post("/channel", auth, async (req, res) => {
 chatRouter.get("/channels", auth, async (req, res) => {
     try {
         const { userId } = req.user;
-        
+
         // Get user's channels from Stream
         const filter = { 
             type: 'messaging',
