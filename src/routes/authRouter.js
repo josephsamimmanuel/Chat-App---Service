@@ -66,7 +66,7 @@ userRouter.post("/login", async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV !== "development",
             maxAge: 3600000,
-            sameSite: "strict"
+            sameSite: "none"
         });
         res.status(200).json({
             message: "Login successful",
