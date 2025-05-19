@@ -45,14 +45,14 @@ friendRequestRouter.post("/send/:receiverId", auth, async (req, res) => {
                 message: "Friend request already sent"
             });
         }
-        
+
         // Create a new friend request
         const newRequest = new FriendRequest({
             sender: userId,
             receiver: receiverId
         });
         await newRequest.save();
-        
+
         res.status(201).json({
             message: "Friend request sent successfully",
             request: newRequest
@@ -70,7 +70,7 @@ friendRequestRouter.post("/accept/:requestId", auth, async (req, res) => {
     try {
         const { userId } = req.user;
         const { requestId } = req.params;
-        
+
         // Check if the request exists
         const request = await FriendRequest.findById(requestId);
         if (!request) {
@@ -123,16 +123,16 @@ friendRequestRouter.get("/get-all-friend-requests", auth, async (req, res) => {
 
         const incomingRequests = await FriendRequest.find({ receiver: userId, status: "pending" })
             .populate("sender", "username profilePicture nativeLanguage learningLanguage location");
-        
+
         const outgoingRequests = await FriendRequest.find({ sender: userId, status: "pending" })
             .populate("receiver", "username profilePicture nativeLanguage learningLanguage location");
-        
-        const acceptedRequests = await FriendRequest.find({ 
-            $or: [{ sender: userId }, { receiver: userId }], 
-            status: "accepted" 
+
+        const acceptedRequests = await FriendRequest.find({
+            $or: [{ sender: userId }, { receiver: userId }],
+            status: "accepted"
         })
-        .populate("sender", "username profilePicture nativeLanguage learningLanguage location")
-        .populate("receiver", "username profilePicture nativeLanguage learningLanguage location");
+            .populate("sender", "username profilePicture nativeLanguage learningLanguage location")
+            .populate("receiver", "username profilePicture nativeLanguage learningLanguage location");
 
         // Filter accepted requests to only show the other user's data
         const filteredAcceptedRequests = acceptedRequests.map(request => {
@@ -163,7 +163,7 @@ friendRequestRouter.get("/get-all-friend-requests", auth, async (req, res) => {
             outgoingRequests: outgoingRequests,
             acceptedRequests: filteredAcceptedRequests
         });
-        
+
     } catch (error) {
         res.status(500).json({
             message: "Failed to get friend requests",
@@ -171,6 +171,73 @@ friendRequestRouter.get("/get-all-friend-requests", auth, async (req, res) => {
         });
     }
 });
+
+// Decline Friend Request
+friendRequestRouter.post("/decline/:requestId", auth, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        const { requestId } = req.params;
+
+        const request = await FriendRequest.findById(requestId);
+        console.log(request);
+        if (!request) {
+            return res.status(404).json({
+                message: "Friend request not found"
+            });
+        }
+
+        if (request.receiver.toString() !== userId) {
+            return res.status(403).json({
+                message: "You are not authorized to decline this friend request"
+            });
+        }
+
+        request.status = "declined";
+        await request.save();
+
+        res.status(200).json({
+            message: "Friend request declined successfully",
+            request: request
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Failed to decline friend request",
+            error: error.message
+        });
+    }
+})
+
+// Delete Friend Request
+friendRequestRouter.delete("/delete/:requestId", auth, async (req, res) => {
+    try {
+        const { userId } = req.user;
+        const { requestId } = req.params;
+
+        const request = await FriendRequest.findById(requestId);
+        if (!request) {
+            return res.status(404).json({
+                message: "Friend request not found"
+            });
+        }
+
+        if (request.sender.toString() !== userId) {
+            return res.status(403).json({
+                message: "You are not authorized to delete this friend request"
+            });
+        }
+
+        await request.deleteOne();
+
+        res.status(200).json({
+            message: "Friend request deleted successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Failed to delete friend request",
+            error: error.message
+        });
+    }
+})
 
 module.exports = friendRequestRouter;
 

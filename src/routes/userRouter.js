@@ -24,8 +24,24 @@ userRouter.get('/recommended', auth, async (req, res) => {
             ]
         });
 
+        // Find all declined friend requests involving the current user
+        const declinedRequests = await FriendRequest.find({
+            $or: [
+                { sender: userId, status: "declined" },
+                { receiver: userId, status: "declined" }
+            ]
+        });
+
+
         // Get IDs of users involved in pending requests
         const pendingUserIds = pendingRequests.map(request => {
+            return request.sender.toString() === userId 
+                ? request.receiver.toString() 
+                : request.sender.toString();
+        });
+
+        // Get Ids of users involved in declined requests
+        const declinedUserIds = declinedRequests.map(request => {
             return request.sender.toString() === userId 
                 ? request.receiver.toString() 
                 : request.sender.toString();
@@ -42,6 +58,7 @@ userRouter.get('/recommended', auth, async (req, res) => {
                 { _id: { $ne: userId } }, // Not the current user
                 { _id: { $nin: user.friends || [] } }, // Not already friends
                 { _id: { $nin: pendingUserIds } }, // Not in pending requests
+                { _id: { $nin: declinedUserIds } }, // Not in declined requests
                 { isOnboarding: true }, // Has completed onboarding
 
                 // Suppose you're this user:
